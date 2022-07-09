@@ -1,0 +1,36 @@
+{:paths ["src" "resources"]
+ :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        org.clojure/core.async {:mvn/version "1.3.618"}
+        org.clojure/data.json {:mvn/version "2.3.0"}
+        enlive/enlive {:mvn/version "1.1.6"}
+        clj-http/clj-http {:mvn/version "3.12.1"}
+        techascent/tech.ml.dataset {:mvn/version "6.00-beta-11"}
+        jarohen/nomad {:mvn/version "0.9.0"}
+        com.taoensso/carmine {:mvn/version "3.1.0"}
+        diehard/diehard {:mvn/version "0.10.3"}
+        aleph/aleph {:mvn/version "0.4.7-alpha7"}
+        gloss/gloss {:mvn/version "0.2.6"}
+        manifold/manifold {:mvn/version "0.1.9-alpha4"}
+        org.clojure/math.numeric-tower {:mvn/version "0.0.4"}
+        clojure.java-time/clojure.java-time {:mvn/version "0.3.2"}
+        io.helins/linux.gpio {:mvn/version "2.0.1"}}
+ :aliases
+ {:cxx {:jvm-opts ["--add-opens" "java.base/jdk.internal.misc=ALL-UNNAMED" "-Dio.netty.tryReflectionSetAccessible=true"]}
+  :run-m {:main-opts ["-m" "pdmct.nem-scraper"]}
+  :run-x {:ns-default pdmct.nem-scraper
+          :exec-fn get-current-prices
+          :exec-args {:name "Clojure"}}
+  :test {:extra-paths ["test"]
+         :extra-deps {org.clojure/test.check {:mvn/version "1.1.0"}}}
+  :runner
+  {:extra-deps {com.cognitect/test-runner
+                {:git/url "https://github.com/cognitect-labs/test-runner"
+                 :sha "b6b3193fcc42659d7e46ecd1884a228993441182"}}
+   :main-opts ["-m" "cognitect.test-runner"
+               "-d" "test"]}
+  :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.211"}}
+            :exec-fn hf.depstar/uberjar
+            :exec-args {:aot true
+                        :jar "nem-scraper.jar"
+                        :main-class "pdmct.nem-scraper"
+                        :sync-pom true}}}}
