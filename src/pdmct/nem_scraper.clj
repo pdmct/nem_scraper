@@ -36,6 +36,12 @@
 
 (def trade-price-ts-pos 2)
 
+(dh/defretrypolicy policy
+  {:retry-on Exception
+   :max-retries 10
+   :backoff-ms [10000 180000]
+   :on-failed-attempt (fn [val ex] (prn (str "failed attempt..." val " : " ex)))})
+
 (defn get-page
   [url]
   (html/html-resource (java.net.URL. url)))
@@ -115,18 +121,13 @@
 
 (defn get-current-spot-price
   []
-  (dh/with-retry {:retry-on Exception
-                  :max-retries 3
-                  :delay-ms 30000}
+  (dh/with-retry {:policy policy}
     (get-current-prices-fn)))
 
 
 (defn get-trade-price-30min
   [last-read]
-  (dh/with-retry {:retry-on Exception
-                  :max-retries 3
-                  :delay-ms 30000
-		  :on-failed-attempt (fn [val ex] (prn (str "failed attempt..." val " : " ex)))}
+  (dh/with-retry {:policy policy}
     (let [[tp-ds new-read] (get-trade-price-fn last-read nemweb-prices-30min-url)]
       (vec (list (some-> tp-ds
                      (ds/filter-column region-column #(= vic-region %))
@@ -152,9 +153,7 @@
 
 (defn get-forecast-prices
   []
-  (dh/with-retry {:retry-on Exception
-                  :max-retries 3
-                  :delay-ms 30000}
+  (dh/with-retry {:policy policy}
     (get-forecast-prices-fn)))
 (defn price-col
   [d & idx]
