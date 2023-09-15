@@ -1,12 +1,16 @@
 (ns pdmct.util.config
-  (:require [nomad.config :as n]
+  (:require [edn-config.core :refer (read-config)]
             [clojure.java.io :as io]))
 
 (def config-map
-  {:dashboard-id <insert your id here>
-   :select-link-serial "<insert your serial here>"
-   :select-link-host "<ip addr of host>"
-   :poll-interval-ms 60000})
+  (:config 
+   (read-config (io/resource "config_local.edn"))))
+  
+
+(defn get-amber-key
+  [config]
+  (-> config
+      :amber-api-key))
 
 (defn get-host
   [config]
@@ -27,3 +31,8 @@
   [config]
   (-> config
       :poll-interval-ms))
+
+(defn redis-uri 
+  [config]
+  (-> config
+      :redis-uri))

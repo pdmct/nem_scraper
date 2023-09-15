@@ -3,9 +3,10 @@
             [net.cgrand.enlive-html :as html]
             [clj-http.client :as client]
             [tech.v3.dataset :as ds]
-            [tech.v3.datatype :as dtype]
+            ;;[tech.v3.datatype :as dtype]
             [pdmct.util.config :as cfg]
             [pdmct.util.redis :as db]
+            [pdmct.service-monitor :refer [monitor-service-log]]
             [diehard.core :as dh]
             [pdmct.select-live-scraper :as sel]
             [pdmct.io.relay :as relay]
@@ -13,7 +14,8 @@
             [clojure.core.async
              :as async
              :refer [<! >! >!! <!! put! chan go close! thread timeout alts!]])
-  (:import [java.io IOException])
+  (:import [java.io IOException] 
+           [java.util.concurrent Executors])
   (:gen-class))
 
 (def nemweb-prices-5min-url "http://nemweb.com.au/Reports/Current/Dispatchprices_PRE_AP/")
@@ -49,8 +51,8 @@
 (defn get-file-hrefs
   [url]
   (html/select
-    (get-page url)
-    [:a]))
+   (get-page url)
+   [:a]))
 
 (defn timestamp-from-url
   [url pos]
@@ -62,8 +64,8 @@
   [url]
   (last (sort (filter #(str/includes? % ".zip")
                       (map
-                        (comp #(str/join (list url %)) html/text)
-                        (get-file-hrefs url))))))
+                       (comp #(str/join (list url %)) html/text)
+                       (get-file-hrefs url))))))
 
 
 (defn csv-map
@@ -130,9 +132,9 @@
   (dh/with-retry {:policy policy}
     (let [[tp-ds new-read] (get-trade-price-fn last-read nemweb-prices-30min-url)]
       (vec (list (some-> tp-ds
-                     (ds/filter-column region-column #(= vic-region %))
-                     (#(% "RRP"))
-                     (#(% 0)))
+                         (ds/filter-column region-column #(= vic-region %))
+                         (#(% "RRP"))
+                         (#(% 0)))
                  new-read)))))
 
 (defn get-forecast-prices-fn
@@ -190,7 +192,7 @@
             pxs)))
 
 (defn get-current-period-forecast
-  "returns the forecast price (30min) for the next (current) forecast period"
+  "returns the AEMO forecast price (30min) for the next (current) forecast period"
   [forecast-prices]
   (-> forecast-prices
       (ds/filter-column "REGIONID" "VIC1")
@@ -212,55 +214,58 @@
         positive-price (and (< current-forecast 40)
                             (< current-30min-price 40))]
     (or
-      good-price
-      (and
-        positive-price
-        (relay/current-state)))))
+     good-price
+     (and
+      positive-price
+      (relay/current-state)))))
 
 (defn -main
   [& args]
+  ;; start a monitor for the main thread -- if it stops responding them restart the whole program
+  (let [executor (Executors/newSingleThreadExecutor)]
+    (future (monitor-service-log) executor))
   (let [relay-chan (chan)
         _ (relay/activate-relay relay-chan)
         _ (relay/stop-charging relay-chan)]
-      (loop [dset nil
-             iters 0
-             last-read nil
-             trade-price 100]
-        (let [current-time  (jt/local-date-time)
-              current-prices (get-current-spot-price)
-              [latest-trade-price, new-read] (get-trade-price-30min last-read)
-              read-time  (if new-read current-time last-read)
-              forecast-prices (get-forecast-prices)
-              timestamp      (ds/dataset-name current-prices)
-              current-battery-data  (sel/get-current-data)
-              soc (:battery_soc (:items current-battery-data))
-              curr-price (get-region-price current-prices vic-region)
-              should-charge? (charge-battery? current-time
-                                              soc
-                                              trade-price
-                                              forecast-prices)]
-          (println (str current-time " "
-                        timestamp " "
-                        vic-region " "
-                        curr-price  " "
-                        trade-price " "
-                        (get-current-period-forecast forecast-prices)
-                        read-time " "
-                        "soc: " soc))
-          (if should-charge?
-            (relay/start-charging relay-chan)
-            (relay/stop-charging relay-chan))
-          (db/ts-add :soc "*" soc)
-          (db/ts-add :price-5min "*" curr-price)
-          (db/ts-add :load "*" (:load_w (:items current-battery-data)))
-          (db/ts-add :grid "*" (:grid_w (:items current-battery-data)))
-          (db/ts-add :battery "*" (:battery_w (:items current-battery-data)))
-          (db/ts-add :price-30min "*" (if latest-trade-price latest-trade-price trade-price))
-          (db/ts-add :charge-signal "*" (if should-charge? 1 0))
-          (db/ts-add :current-forecast "*" (get-current-period-forecast forecast-prices))
+    (loop [dset nil
+           iters 0
+           last-read nil
+           trade-price 100]
+      (let [current-time  (jt/local-date-time)
+            current-prices (get-current-spot-price)
+            [latest-trade-price, new-read] (get-trade-price-30min last-read)
+            read-time  (if new-read current-time last-read)
+            forecast-prices (get-forecast-prices)
+            timestamp      (ds/dataset-name current-prices)
+            current-battery-data  (sel/get-current-data)
+            soc (:battery_soc (:items current-battery-data))
+            curr-price (get-region-price current-prices vic-region)
+            should-charge? (charge-battery? current-time
+                                            soc
+                                            trade-price
+                                            forecast-prices)]
+        (println (str current-time " "
+                      timestamp " "
+                      vic-region " "
+                      curr-price  " "
+                      trade-price " "
+                      (get-current-period-forecast forecast-prices)
+                      read-time " "
+                      "soc: " soc))
+        (if should-charge?
+          (relay/start-charging relay-chan)
+          (relay/stop-charging relay-chan))
+        (db/ts-add :soc "*" soc)
+        (db/ts-add :price-5min "*" curr-price)
+        (db/ts-add :load "*" (:load_w (:items current-battery-data)))
+        (db/ts-add :grid "*" (:grid_w (:items current-battery-data)))
+        (db/ts-add :battery "*" (:battery_w (:items current-battery-data)))
+        (db/ts-add :price-30min "*" (if latest-trade-price latest-trade-price trade-price))
+        (db/ts-add :charge-signal "*" (if should-charge? 1 0))
+        (db/ts-add :current-forecast "*" (get-current-period-forecast forecast-prices))
 
-          (Thread/sleep poll-interval-ms)
-          (recur (ds/concat current-prices dset)
-                 (inc iters)
-                 read-time
-                 (if latest-trade-price latest-trade-price trade-price))))))
+        (Thread/sleep poll-interval-ms)
+        (recur (ds/concat current-prices dset)
+               (inc iters)
+               read-time
+               (if latest-trade-price latest-trade-price trade-price))))))

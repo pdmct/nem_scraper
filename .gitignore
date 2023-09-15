@@ -11,5 +11,9 @@
 /.nrepl-port
 /.rebel_readline_history
 /.socket-repl-port
+/.clj-kondo
+/.lsp
+.vscode
 .hgignore
 .hg/
+/resources/config_local.edn

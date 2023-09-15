@@ -1,6 +1,7 @@
 (ns pdmct.util.redis
   (:require [taoensso.carmine :as car :refer (wcar)]
-            [diehard.core :as dh]))
+            [diehard.core :as dh]
+            [pdmct.util.config :as cfg]))
 
 
 
@@ -17,10 +18,10 @@
    :relay-state "relay_state"
    :current-forecast "vic_30min_forecast"})
 
+(def redis-uri (cfg/redis-uri cfg/config-map))
 
-;; the following should come from config
 (def server-conn {:pool {}
-                  :spec {:uri "<redis uri>"}})
+                  :spec {:uri redis-uri}})
 
 (defmacro wcar* [& body] `(car/wcar server-conn ~@body))
 
