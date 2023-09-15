@@ -17,3 +17,5 @@
 .hgignore
 .hg/
 /resources/config_local.edn
+nohup.out
+src/pdmct/util/#config.clj#
