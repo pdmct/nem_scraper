@@ -15,7 +15,7 @@
 (defn get-host
   [config]
   (-> config
-      :select-link-host))
+      :select-live-host))
 
 (defn get-serial
   [config]
