@@ -11,6 +11,8 @@
    :soc-avg  "battery_soc_avg_5min"
    :price-5min "vic_5min_price"
    :price-30min "vic_30min_price"
+   :curr-usage-price "amber_curr_price"
+   :current-fit "amber_curr_fit"
    :load "inv_load_w"
    :grid "inv_grid_w"
    :battery "inv_battery_w"

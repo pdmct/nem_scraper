@@ -13,7 +13,7 @@
 
 (def sites "/sites")
 
-(def current-prices-template "/sites/%s/prices/current?next=10&previous=0&resolution=30")
+(def current-prices-template "/sites/%s/prices/current?next=30&previous=0&resolution=30")
 
 (dh/defretrypolicy policy
   {:retry-on Exception
@@ -48,5 +48,27 @@
       :body
       (json/read-str :key-fn keyword)))
 
-(defn get-current-interval []
-  (-> (get-current-prices)))
+(defn get-current-interval-price []
+  (let [curr-price-fn (fn [a]
+                        (and (= "CurrentInterval" (:type a))
+                             (= "general" (:channelType a))))]
+   (->> (get-current-prices)
+       (filter curr-price-fn)
+       first
+       :perKwh)))
+
+;; utiltity functions
+; get min usage cost over next 15 hrs
+; get max usage cost of next 15 hrs
+; get max feedin tariff over next 15 hrs
+; get negative feedin periods over next 15 hrs
+; get current FIT 
+
+(defn get-current-fit []
+  (let [curr-fit-fn (fn [a] (and (= "CurrentInterval" (:type a))
+                                 (= "feedIn" (:channelType a))))]
+   (->> (get-current-prices)
+        (filter curr-fit-fn)
+        first
+        :perKwh
+        (* -1.0 ))))

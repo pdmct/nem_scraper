@@ -1,0 +1,13 @@
+TS.CREATE solar_gen_power_w
+TS.CREATE battery_soc
+TS.CREATE battery_soc_avg_5min
+TS.CREATE vic_5min_price
+TS.CREATE vic_30min_price
+TS.CREATE amber_curr_price
+TS.CREATE amber_curr_fit
+TS.CREATE inv_load_w
+TS.CREATE inv_grid_w
+TS.CREATE inv_battery_w
+TS.CREATE charge_signal
+TS.CREATE relay_state
+TS.CREATE vic_30min_forecast

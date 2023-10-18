@@ -6,6 +6,25 @@
   (:config 
    (read-config (io/resource "config_local.edn"))))
   
+(defn get-alert-phones
+  [config]
+  (-> config
+      :alert-phones))
+
+(defn get-twilio-sid
+  [config]
+  (-> config
+      :twilio-sid))
+
+(defn get-twilio-token
+  [config]
+  (-> config
+      :twilio-token))
+
+(defn get-twilio-phone
+  [config]
+  (-> config
+      :twilio-phone))
 
 (defn get-amber-key
   [config]

@@ -10,6 +10,8 @@
             [diehard.core :as dh]
             [pdmct.select-live-scraper :as sel]
             [pdmct.io.relay :as relay]
+            [pdmct.io.twilio :as sms]
+            [pdmct.amber :as amber]
             [java-time :as jt]
             [clojure.core.async
              :as async
@@ -219,8 +221,37 @@
       positive-price
       (relay/current-state)))))
 
+(defn process-alerts [current-price current-fit battery-data]
+  (let [export (< 0 (:grid_w battery-data))
+        export-amount (:grid_w battery-data)
+        from-phone (cfg/get-twilio-phone cfg/config-map)
+        to-phones (cfg/get-alert-phones cfg/config-map)
+        sid (cfg/get-twilio-sid cfg/config-map)
+        token (cfg/get-twilio-token cfg/config-map)]
+    (for [to-phone to-phones
+          :let [alert (sms/sms from-phone to-phone
+                       (str "ALERT: currently exporting " 
+                            (format "%.2f" export-amount) "W with FIT:" 
+                            (format "%.2f" current-fit) " c per kWh"))]]
+      (if (and (< 150 export-amount)
+               export 
+               (< current-fit -0.5))
+        (do (sms/with-auth sid token
+            (sms/send-sms alert))
+          true)
+      false))))
+
+(defn exit-on-uncaught-exception []
+  (.setUncaughtExceptionHandler (Thread/currentThread)
+   (reify Thread$UncaughtExceptionHandler
+     (uncaughtException [_ thread exception]
+       (.println System/err "Uncaught exception in thread:" (.getName thread))
+       (.printStackTrace exception)
+       (System/exit 1))))) ; Exit the process with a non-zero status code
+
 (defn -main
   [& args]
+  (exit-on-uncaught-exception)
   ;; start a monitor for the main thread -- if it stops responding them restart the whole program
   (let [executor (Executors/newSingleThreadExecutor)]
     (future (monitor-service-log) executor))
@@ -240,6 +271,8 @@
             current-battery-data  (sel/get-current-data)
             soc (:battery_soc (:items current-battery-data))
             curr-price (get-region-price current-prices vic-region)
+            current-usage-price (amber/get-current-interval-price)
+            current-fit (amber/get-current-fit)
             should-charge? (charge-battery? current-time
                                             soc
                                             trade-price
@@ -247,7 +280,7 @@
         (println (str current-time " "
                       timestamp " "
                       vic-region " "
-                      curr-price  " "
+                      current-usage-price  " "
                       trade-price " "
                       (get-current-period-forecast forecast-prices)
                       read-time " "
@@ -257,6 +290,8 @@
           (relay/stop-charging relay-chan))
         (db/ts-add :soc "*" soc)
         (db/ts-add :price-5min "*" curr-price)
+        (db/ts-add :curr-usage-price "*" current-usage-price)
+        (db/ts-add :current-fit "*" current-fit)
         (db/ts-add :load "*" (:load_w (:items current-battery-data)))
         (db/ts-add :grid "*" (:grid_w (:items current-battery-data)))
         (db/ts-add :battery "*" (:battery_w (:items current-battery-data)))
@@ -264,6 +299,8 @@
         (db/ts-add :charge-signal "*" (if should-charge? 1 0))
         (db/ts-add :current-forecast "*" (get-current-period-forecast forecast-prices))
 
+        (if-let [send-res (process-alerts current-usage-price current-fit (:items current-battery-data))]
+          (println (str "sent alert:" (vector send-res) " prices: " current-usage-price " fit: " current-fit " battery: " (:items current-battery-data))))
         (Thread/sleep poll-interval-ms)
         (recur (ds/concat current-prices dset)
                (inc iters)
