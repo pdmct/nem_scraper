@@ -18,7 +18,13 @@
    :battery "inv_battery_w"
    :charge-signal "charge_signal"
    :relay-state "relay_state"
-   :current-forecast "vic_30min_forecast"})
+   :current-forecast "vic_30min_forecast"
+   :ev-charge-state "ev_charge_state"
+   :ev-current-power "ev_current_power"
+   :ev-energy-usage-today "ev_energy_usage_today"
+   :ev-energy-usage-this-month "ev_energy_usage_month"
+   :ev-uptime-today "ev_runtime_today"
+   :ev-uptime-this-month "ev_runtime_month"})
 
 (def redis-uri (cfg/redis-uri cfg/config-map))
 

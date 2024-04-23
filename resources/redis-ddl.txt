@@ -11,3 +11,9 @@ TS.CREATE inv_battery_w
 TS.CREATE charge_signal
 TS.CREATE relay_state
 TS.CREATE vic_30min_forecast
+TS.CREATE ev_charge_state
+TS.CREATE ev_current_power
+TS.CREATE ev_energy_usage_today
+TS.CREATE ev_energy_usage_month
+TS.CREATE ev_runtime_today
+TS.CREATE ev_runtime_month

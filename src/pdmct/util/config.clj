@@ -6,6 +6,35 @@
   (:config 
    (read-config (io/resource "config_local.edn"))))
   
+
+(defn get-python-executable
+  [config]
+  (-> config
+      :python-exec-path))
+
+(defn get-ev-control-script
+  [config]
+  (-> config
+      :ev-control-script))
+
+(defn get-tapo-username
+  [config]
+  (-> config
+      :tapo-username))
+
+(defn get-tapo-password
+  [config]
+  (-> config
+      :tapo-password))
+
+(defn get-ev-controller-ip
+  [config]
+  (-> config
+      :ev-control-ip))
+
+
+
+
 (defn get-alert-phones
   [config]
   (-> config

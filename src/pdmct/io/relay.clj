@@ -1,5 +1,6 @@
 (ns pdmct.io.relay
-  (:require [clojure.core.async
+  (:require [clojure.tools.logging :as log]
+            [clojure.core.async
              :as async
              :refer [put! chan timeout <! go]]
    [helins.linux.gpio :as gpio]))
@@ -35,8 +36,9 @@
           :stop   (turn-off))))))
 
 (defn set-relay-state! [state]
+  (let [old-state @relay-state]
     (if-let [new-state (compare-and-set! relay-state (not state) state)]
-      (println (str "set-realy-state! from " @relay-state " to "state))))
+      (log/info (str "set-relay-state! from " old-state " to " state)))))
 
 (defn _set-relay-state! [state]
   (if-let [new-state (compare-and-set! relay-state (not state) state)]
